@@ -7,8 +7,8 @@ type t =
 
 let[@inline never] lock_tracer s =
   (* This is a maximally unfair spinlock. *)
-  (* if s.locked then Printf.fprintf stderr "contention\n%!"; *)
-  while s.locked do Thread.yield () done;
+  if s.locked then Printf.fprintf stderr "contention\n%!";
+  (* while s.locked do Thread.yield () done; *)
   if s.failed then
     false
   else
