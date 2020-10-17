@@ -1,4 +1,5 @@
 (library
  (name memtrace)
- (public_name memtrace))
+ (public_name memtrace-mirage)
+ (libraries mirage-flow mirage-clock ptime lwt))
 

@@ -22,14 +22,6 @@ end
 module Write = struct
   include Shared
 
-  let rec write_fully fd buf pos pos_end =
-    if pos = pos_end then () else
-      let written = Unix.write fd buf pos (pos_end - pos) in
-      write_fully fd buf (pos + written) pos_end
-
-  let write_fd fd b =
-    write_fully fd b.buf 0 b.pos
-
   let put_raw_8 b i v = Bytes.unsafe_set b i (Char.unsafe_chr v)
   external put_raw_16 : Bytes.t -> int -> int -> unit = "%caml_bytes_set16u"
   external put_raw_32 : Bytes.t -> int -> int32 -> unit = "%caml_bytes_set32u"
@@ -152,26 +144,6 @@ end
 module Read = struct
 
   include Shared
-
-  let rec read_into fd buf off =
-    if off = Bytes.length buf then
-      { buf; pos = 0; pos_end = off }
-    else begin
-      assert (0 <= off && off <= Bytes.length buf);
-      let n = Unix.read fd buf off (Bytes.length buf - off) in
-      if n = 0 then
-        (* EOF *)
-        { buf; pos = 0; pos_end = off }
-      else
-        (* Short read *)
-        read_into fd buf (off + n)
-    end
-  let read_fd fd buf = read_into fd buf 0
-
-  let refill_fd fd b =
-    let len = remaining b in
-    Bytes.blit b.buf b.pos b.buf 0 len;
-    read_into fd b.buf len
 
   let split b len =
     let len = min (remaining b) len in

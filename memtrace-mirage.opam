@@ -6,11 +6,15 @@ description: "Generates compact traces of a program's memory use."
 maintainer: ["opensource@janestreet.com"]
 authors: ["Jane Street Group, LLC <opensource@janestreet.com>"]
 license: "MIT"
-homepage: "https://github.com/janestreet/memtrace"
-bug-reports: "https://github.com/janestreet/memtrace/issues"
+homepage: "https://github.com/hannesm/memtrace-mirage"
+bug-reports: "https://github.com/hannesm/memtrace-mirage/issues"
 depends: [
   "dune" {>= "2.3"}
   "ocaml" {>= "4.11.0"}
+  "mirage-flow"
+  "mirage-clock"
+  "ptime"
+  "lwt"
 ]
 build: [
   ["dune" "subst"] {pinned}
@@ -26,4 +30,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/janestreet/memtrace.git"
+dev-repo: "git+https://github.com/hannesm/memtrace-mirage.git"
