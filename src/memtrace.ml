@@ -38,6 +38,7 @@ module Make (P : Mirage_clock.PCLOCK) (F : Mirage_flow.S) = struct
     let s = { trace; locked = false; stopped = false; failed = false; report_exn } in
     let tracker : (_,_) Gc.Memprof.tracker = {
       alloc_minor = (fun info ->
+          (* print_endline "alloc_minor"; *)
           if lock_tracer s then begin
             match Trace.Writer.put_alloc_with_raw_backtrace trace (Trace.Timestamp.now ())
                     ~length:info.size
@@ -49,6 +50,7 @@ module Make (P : Mirage_clock.PCLOCK) (F : Mirage_flow.S) = struct
             | exception e -> mark_failed s e; None
           end else None);
       alloc_major = (fun info ->
+          (* print_endline "alloc_major"; *)
           if lock_tracer s then begin
             match Trace.Writer.put_alloc_with_raw_backtrace trace (Trace.Timestamp.now ())
                     ~length:info.size
@@ -60,17 +62,20 @@ module Make (P : Mirage_clock.PCLOCK) (F : Mirage_flow.S) = struct
             | exception e -> mark_failed s e; None
           end else None);
       promote = (fun id ->
+          (* print_endline "promote"; *)
           if lock_tracer s then
             match Trace.Writer.put_promote trace (Trace.Timestamp.now ()) id with
             | () -> unlock_tracer s; Some id
             | exception e -> mark_failed s e; None
           else None);
       dealloc_minor = (fun id ->
+          (* print_endline "dealloc_minor"; *)
           if lock_tracer s then
             match Trace.Writer.put_collect trace (Trace.Timestamp.now ()) id with
             | () -> unlock_tracer s
             | exception e -> mark_failed s e);
       dealloc_major = (fun id ->
+          (* print_endline "dealloc_major"; *)
           if lock_tracer s then
             match Trace.Writer.put_collect trace (Trace.Timestamp.now ()) id with
             | () -> unlock_tracer s
@@ -112,6 +117,7 @@ module Make (P : Mirage_clock.PCLOCK) (F : Mirage_flow.S) = struct
     Lwt.async (fun () ->
         let open Lwt.Infix in
         let rec go () =
+          (* print_endline "go"; *)
           Lwt_stream.get stream >>= function
           | None -> F.close flow
           | Some ev ->
