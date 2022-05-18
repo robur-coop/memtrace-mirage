@@ -14,11 +14,6 @@ module Write : sig
   val of_bytes_sub : Bytes.t -> pos:int -> pos_end:int -> t
   val remaining : t -> int
 
-  (** [write_fd fd b] writes the bytes written to b to the fd.
-
-      No bufs are invalidated *)
-  val write_fd : Unix.file_descr -> t -> unit
-
   (** Writing to a buf. All types are written little-endian.
       All functions raise Overflow if there is insufficient space remaining *)
 
@@ -76,18 +71,6 @@ module Read : sig
 
       The two returned parts share the same underlying Bytes.t *)
   val split : t -> int -> (t * t)
-
-  (** [read_fd fd byt] returns a buf containing bytes read from fd,
-      whose underlying buffer is byt.
-
-      All [t]s sharing this underlying buffer are invalidated *)
-  val read_fd : Unix.file_descr -> Bytes.t -> t
-
-  (** [refill_fd fd b] returns a buf containing the contents of b followed
-      by bytes read from fd, whose underlying buffer is that of b.
-
-      All bufs sharing this underlying buffer (including b) are invalidated *)
-  val refill_fd : Unix.file_descr -> t -> t
 
   val empty : t
 

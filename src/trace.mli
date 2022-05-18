@@ -1,3 +1,4 @@
+module type S = sig
 (** Encoder and decoder for Memtrace traces *)
 
 (** Timestamps *)
@@ -109,10 +110,10 @@ end
 module Writer : sig
   type t
   exception Pid_changed
-  val create : Unix.file_descr -> ?getpid:(unit -> int64) -> Info.t -> t
+  val create : (Cstruct.t option -> unit) -> ?getpid:(unit -> int64) -> Info.t -> t
 
-  (** All of the functions below may raise Unix_error if
-      writing to the file descriptor fails, or Pid_changed
+  (** All of the functions below may raise F.write_error if
+      writing to the flow fails, or Pid_changed
       if getpid returns a different value. *)
 
   val put_alloc :
@@ -145,6 +146,7 @@ module Writer : sig
   val close : t -> unit
 end
 
+(*
 (** Reading traces *)
 module Reader : sig
   type t
@@ -161,3 +163,8 @@ module Reader : sig
   val size_bytes : t -> int64
   val close : t -> unit
 end
+*)
+
+end
+
+module Make (P : Mirage_clock.PCLOCK) : S

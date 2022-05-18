@@ -1,3 +1,174 @@
+module type S = sig
+(** Encoder and decoder for Memtrace traces *)
+
+(** Timestamps *)
+module Timestamp : sig
+  type t
+  val now : unit -> t
+
+  (** Convert to and from the number of microseconds since the Unix epoch *)
+  val of_int64 : int64 -> t
+  val to_int64 : t -> int64
+
+  (** Convert back and forth between the Unix module's float format and timestamps *)
+  val to_float : t -> float
+  val of_float : float -> t
+end
+
+(** Times measured from the start of the trace *)
+module Timedelta : sig
+  type t
+
+  (** Convert to the number of microseconds since the start of the trace *)
+  val to_int64 : t -> int64
+  val offset : Timestamp.t -> t -> Timestamp.t
+end
+
+(** Source locations in the traced program *)
+module Location : sig
+  type t = {
+    filename : string;
+    line : int;
+    start_char : int;
+    end_char : int;
+    defname : string;
+  }
+
+  val to_string : t -> string
+  val unknown : t
+end
+
+(** Identifiers to represent allocations *)
+module Obj_id : sig
+  type t = private int
+
+  (** For convenience, a hashtable keyed by object ID *)
+  module Tbl : Hashtbl.SeededS with type key = t
+end
+
+(** Codes for subsequences of locations in a backtrace *)
+module Location_code : sig
+  type t = private int
+
+  (** For convenience, a hashtable keyed by location code *)
+  module Tbl : Hashtbl.SeededS with type key = t
+end
+
+(** Types of allocation *)
+module Allocation_source : sig
+  type t = Minor | Major | External
+end
+
+(** Trace events *)
+module Event : sig
+  type t =
+    | Alloc of {
+        obj_id : Obj_id.t;
+        (** An identifier for this allocation, used to refer to it in other events.
+            These identifiers are generated in allocation order. *)
+        length : int;
+        (** Length of the sampled allocation, in words, not including header word *)
+        nsamples : int;
+        (** Number of samples made in this allocation. At least 1. *)
+        source : Allocation_source.t;
+        (** How this object was initially allocated *)
+        backtrace_buffer : Location_code.t array;
+        (** Backtrace of the allocation.
+            The backtrace elements are stored in order from caller to callee.
+            The first element is the main entrypoint and the last is the allocation.
+
+            NB: this is a mutable buffer, reused between events.
+            Entries at indices beyond [backtrace_length - 1] are not meaningful.
+            If you want to store backtraces, you must copy them using:
+            [Array.sub backtrace_buffer 0 backtrace_length]. *)
+        backtrace_length : int;
+        (** Length of the backtrace *)
+        common_prefix : int;
+        (** A prefix of this length has not changed since the last event *)
+      }
+    | Promote of Obj_id.t
+    | Collect of Obj_id.t
+
+  val to_string : (Location_code.t -> Location.t list) -> t -> string
+end
+
+(** Global trace info *)
+module Info : sig
+  type t = {
+    sample_rate : float;
+    word_size : int;
+    executable_name : string;
+    host_name : string;
+    ocaml_runtime_params : string;
+    pid : Int64.t;
+    start_time : Timestamp.t;
+    context : string option;
+  }
+end
+
+(** Writing traces *)
+module Writer : sig
+  type t
+  exception Pid_changed
+  val create : (Cstruct.t option -> unit) -> ?getpid:(unit -> int64) -> Info.t -> t
+
+  (** All of the functions below may raise F.write_error if
+      writing to the flow fails, or Pid_changed
+      if getpid returns a different value. *)
+
+  val put_alloc :
+    t
+    -> Timestamp.t
+    -> length:int
+    -> nsamples:int
+    -> source:Allocation_source.t
+    -> callstack:Location_code.t array
+    -> decode_callstack_entry:(Location_code.t -> Location.t list)
+    -> Obj_id.t
+  val put_alloc_with_raw_backtrace :
+    t
+    -> Timestamp.t
+    -> length:int
+    -> nsamples:int
+    -> source:Allocation_source.t
+    -> callstack:Printexc.raw_backtrace
+    -> Obj_id.t
+  val put_collect : t -> Timestamp.t -> Obj_id.t -> unit
+  val put_promote : t -> Timestamp.t -> Obj_id.t -> unit
+  val put_event :
+    t
+    -> decode_callstack_entry:(Location_code.t -> Location.t list)
+    -> Timestamp.t
+    -> Event.t
+    -> unit
+
+  val flush : t -> unit
+  val close : t -> unit
+end
+
+(*
+(** Reading traces *)
+module Reader : sig
+  type t
+
+  val create : Unix.file_descr -> t
+  val info : t -> Info.t
+  val lookup_location_code : t -> Location_code.t -> Location.t list
+
+  (** Iterate over a trace *)
+  val iter : t -> ?parse_backtraces:bool -> (Timedelta.t -> Event.t -> unit) -> unit
+
+  (** Convenience functions for accessing traces stored in files *)
+  val open_ : filename:string -> t
+  val size_bytes : t -> int64
+  val close : t -> unit
+end
+*)
+
+end
+
+module Make (P : Mirage_clock.PCLOCK) = struct
+
 (* This is the implementation of the encoder/decoder for the memtrace
    format. This format is quite involved, and to understand it it's
    best to read the CTF specification and comments in memtrace.tsl
@@ -38,7 +209,7 @@ module Timestamp = struct
   let of_float f =
     f *. 1_000_000. |> Int64.of_float
 
-  let now () = of_float (Unix.gettimeofday ())
+  let now () = of_float Ptime.(to_float_s (v (P.now_d_ps ())))
 end
 
 (* Time since the start of the trace *)
@@ -109,7 +280,7 @@ let finish_ctf_header hdr b
   update_64 b hdr.off_alloc_begin (Int64.of_int alloc_id_begin);
   update_64 b hdr.off_alloc_end (Int64.of_int alloc_id_end)
 
-let get_ctf_header b rcache =
+let _get_ctf_header b rcache =
   let open Read in
   let start = b.pos in
   let magic = get_32 b in
@@ -195,7 +366,7 @@ let put_event_header b ev time =
              (logand (Int64.to_int32 time) event_header_time_mask)) in
   put_32 b code
 
-let[@inline] get_event_header info b =
+let[@inline] _get_event_header info b =
   let open Read in
   let code = get_32 b in
   let start_low =
@@ -249,7 +420,7 @@ let put_trace_info b (info : Info.t) =
   let context = match info.context with None -> "" | Some s -> s in
   put_string b context
 
-let get_trace_info b ~packet_info =
+let _get_trace_info b ~packet_info =
   let open Read in
   let start_time = packet_info.time_begin in
   let sample_rate = get_float b in
@@ -278,7 +449,7 @@ let get_trace_info b ~packet_info =
 (** Trace writer *)
 
 type writer = {
-  dest : Unix.file_descr;
+  dest : Cstruct.t option -> unit;
   pid : int64;
   getpid : unit -> int64;
   loc_writer : Location_codec.Writer.t;
@@ -300,6 +471,10 @@ type writer = {
   mutable packet_header : ctf_header_offsets;
   mutable packet : Write.t;
 }
+
+let write_fd fd b =
+  let open Write in
+  fd (Some (Cstruct.of_bytes ~len:b.pos b.buf))
 
 let make_writer dest ?getpid (info : Info.t) =
   let open Write in
@@ -570,7 +745,7 @@ let put_alloc s now ~length ~nsamples ~source
   end;
   id
 
-let get_alloc ~parse_backtraces evcode cache alloc_id b =
+let _get_alloc ~parse_backtraces evcode cache alloc_id b =
   let open Read in
   let is_short, length, nsamples, source =
     match evcode with
@@ -612,7 +787,7 @@ let put_promote s now id =
   let b = s.packet in
   put_vint b (s.next_alloc_id - 1 - id)
 
-let get_promote alloc_id b =
+let _get_promote alloc_id b =
   let open Read in
   let id_delta = get_vint b in
   check_fmt "promote id sync" (id_delta >= 0);
@@ -627,7 +802,7 @@ let put_collect s now id =
   let b = s.packet in
   put_vint b (s.next_alloc_id - 1 - id)
 
-let get_collect alloc_id b =
+let _get_collect alloc_id b =
   let open Read in
   let id_delta = get_vint b in
   check_fmt "collect id sync" (id_delta >= 0);
@@ -635,7 +810,7 @@ let get_collect alloc_id b =
   Event.Collect id
 
 
-
+(*
 (** Trace reader *)
 
 type reader = {
@@ -648,7 +823,7 @@ type reader = {
 let make_reader fd =
   let open Read in
   let buf = Bytes.make max_packet_size '\042' in
-  let start_pos = Unix.lseek fd 0 SEEK_CUR in
+  (*  let start_pos = Unix.lseek fd 0 SEEK_CUR in *)
   let b = read_fd fd buf in
   let packet_info = get_ctf_header b None in
   let header_size = b.pos in
@@ -741,7 +916,7 @@ let iter s ?(parse_backtraces=true) f =
     end;
     iter_packets rest in
   iter_packets (read_fd s.fd (Bytes.make max_packet_size '\000'))
-
+*)
 
 module Writer = struct
   type t = writer
@@ -788,7 +963,7 @@ module Writer = struct
   let put_collect = put_collect
   let put_promote = put_promote
   let flush = flush
-  let close t = flush t; Unix.close t.dest
+  let close t = flush t; t.dest None
 
   let put_event w ~decode_callstack_entry now (ev : Event.t) =
     match ev with
@@ -808,6 +983,7 @@ module Writer = struct
       put_collect w now id
 end
 
+(*
 module Reader = struct
   type t = reader
 
@@ -832,4 +1008,6 @@ module Reader = struct
 
   let close s =
     Unix.close s.fd
+end
+*)
 end

@@ -1,3 +1,5 @@
+module Make (Trace : Trace.S) = struct
+
 type t =
   { mutable locked : bool;
     mutable locked_ext : bool;
@@ -16,19 +18,16 @@ let bytes_before_ext_sample = ref max_int
 let draw_sampler_bytes t =
   Geometric_sampler.draw t.ext_sampler * (Sys.word_size / 8)
 
-let[@inline never] rec lock_tracer s =
-  if s.locked then
-    if s.locked_ext then false
-    else (Thread.yield (); lock_tracer s)
-  else if s.failed then
+let[@inline never] lock_tracer s =
+  if s.locked then print_endline "lock contention" ;
+  if s.failed then
     false
   else
     (s.locked <- true; true)
 
-let[@inline never] rec lock_tracer_ext s =
-  if s.locked then
-    (Thread.yield (); lock_tracer_ext s)
-  else if s.failed then
+let[@inline never] lock_tracer_ext s =
+  if s.locked then print_endline "lock_ext contention" ;
+  if s.failed then
     false
   else
     (s.locked <- true; s.locked_ext <- true; true)
@@ -169,3 +168,4 @@ let ext_free id =
       | () -> unlock_tracer_ext s; ()
       | exception e -> mark_failed s e; ()
     end
+end
