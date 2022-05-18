@@ -1,3 +1,7 @@
+## v0.2.1.2.1 (2022-05-18)
+
+Initial release, based on memtrace 521627fb5ced5b49ff03f608fc5fbe20ae1ff24f
+
 ## v0.2.1.2 (2020-03-08)
 
 More fixes for 32-bit platforms.
