@@ -8,10 +8,9 @@ unikernel establishes a TCP connection to a listener which dumps the trace into
 a file, or the unikernel offers a service where upon connection of a client,
 the trace is dumped to.
 
-As preparation in both cases, you need to
-`opam pin add memtrace-mirage https://github.com/hannesm/memtrace-mirage.git`
-and add `~packages:[ package "memtrace-mirage" ]` to your `config.ml` where you
-call `Mirage.foreign`.
+As preparation in both cases, you need to install this package by executing
+`opam install memtrace-mirage` and add `~packages:[ package "memtrace-mirage" ]`
+to your `config.ml` where you call `Mirage.foreign`.
 
 ## From the start: establish a client connection from the unikernel
 
