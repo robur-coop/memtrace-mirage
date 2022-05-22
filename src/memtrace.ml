@@ -26,6 +26,8 @@ let start_tracing ~context ?(sampling_rate = default_sampling_rate) flow =
       context;
     } in
   let stream, pushf = Lwt_stream.create () in
+  let trace = Trace.Writer.create pushf ~getpid:getpid64 info in
+  let tracer = Memprof_tracer.start ~sampling_rate trace in
   Lwt.async (fun () ->
       let open Lwt.Infix in
       let rec go () =
@@ -35,11 +37,14 @@ let start_tracing ~context ?(sampling_rate = default_sampling_rate) flow =
         | Some ev ->
           F.write flow ev >>= function
           | Ok () -> go ()
-          | Error we -> Lwt.fail_with (Fmt.to_to_string F.pp_write_error we)
+          | Error we ->
+            print_endline ("tracing stopped due to write error: " ^
+                            Fmt.to_to_string F.pp_write_error we);
+            Memprof_tracer.stop tracer;
+            Lwt.return_unit
       in
       go ());
-  let trace = Trace.Writer.create pushf ~getpid:getpid64 info in
-  Memprof_tracer.start ~sampling_rate trace
+  tracer
 
 let stop_tracing t =
   Memprof_tracer.stop t
