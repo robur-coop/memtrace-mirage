@@ -47,24 +47,21 @@ In the `unikernel.ml`, add the following code:
 module Memtrace = Memtrace.Make(Pclock)(S.TCP)
 
 let start () s =
-  let tracing = ref false in
   S.TCP.listen (S.tcp s) ~port:1234
     (fun f ->
        (* only allow a single tracing client *)
-       if !tracing then begin
+       match Memtrace.Memprof_tracer.active_tracer () with
+       | Some _ ->
          Logs.warn (fun m -> m "tracing already active");
          S.TCP.close f
-       end else begin
+       | None ->
          Logs.info (fun m -> m "starting tracing");
          let tracer = Memtrace.start_tracing ~context:None ~sampling_rate:1e-4 f in
-         tracing := true;
          Lwt.async (fun () ->
            S.TCP.read f >|= fun _ ->
            Logs.warn (fun m -> m "tracing read returned, closing");
-           Memtrace.stop_tracing tracer;
-           tracing := false);
-         Lwt.return_unit
-       end);
+           Memtrace.stop_tracing tracer);
+         Lwt.return_unit);
   ... rest of start ...
 ```
 
