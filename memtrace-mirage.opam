@@ -9,8 +9,8 @@ authors: [
   "Hannes Mehnert <hannes@mehnert.org>"
 ]
 license: "MIT"
-homepage: "https://github.com/roburio/memtrace-mirage"
-bug-reports: "https://github.com/roburio/memtrace-mirage/issues"
+homepage: "https://github.com/robur-coop/memtrace-mirage"
+bug-reports: "https://github.com/robur-coop/memtrace-mirage/issues"
 depends: [
   "dune" {>= "2.3"}
   "ocaml" {>= "4.11.0"}
@@ -33,4 +33,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/roburio/memtrace-mirage.git"
+dev-repo: "git+https://github.com/robur-coop/memtrace-mirage.git"

@@ -3,7 +3,7 @@
 
 (generate_opam_files true)
 
-(source (github roburio/memtrace-mirage))
+(source (github robur-coop/memtrace-mirage))
 (license MIT)
 (authors "Jane Street Group, LLC <opensource@janestreet.com>" "Robur Team <team@robur.coop>" "Hannes Mehnert <hannes@mehnert.org>")
 (maintainers "team@robur.coop")
