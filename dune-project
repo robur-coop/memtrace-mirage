@@ -13,9 +13,9 @@
  (synopsis "Streaming client for Memprof using MirageOS API")
  (description "Generates compact traces of a program's memory use.")
  (depends
-  (ocaml (>= 4.11.0))
+  (ocaml (and (>= 4.11.0) (< 5)))
   (mirage-flow (>= 3.0.0))
-  (mirage-clock (>= 4.0.0))
+  (mirage-ptime (>= 5.0.0))
   (ptime (>= 1.0.0))
   (lwt (>= 5.5.0))))
 

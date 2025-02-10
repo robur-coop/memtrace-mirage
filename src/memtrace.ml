@@ -1,10 +1,10 @@
-module Make (P : Mirage_clock.PCLOCK) (F : Mirage_flow.S) = struct
+module Make (F : Mirage_flow.S) = struct
 
-module Trace = Trace.Make(P)
+module Trace = Trace
 
 (** Use Memprof_tracer in conjunction with Trace.Writer for more manual
     control over trace collection *)
-module Memprof_tracer = Memprof_tracer.Make(Trace)
+module Memprof_tracer = Memprof_tracer
 
 type tracer = Memprof_tracer.t
 

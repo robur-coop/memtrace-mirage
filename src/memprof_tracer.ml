@@ -1,5 +1,3 @@
-module Make (Trace : Trace.S) = struct
-
 type t =
   { mutable locked : bool;
     mutable locked_ext : bool;
@@ -168,4 +166,3 @@ let ext_free id =
       | () -> unlock_tracer_ext s; ()
       | exception e -> mark_failed s e; ()
     end
-end

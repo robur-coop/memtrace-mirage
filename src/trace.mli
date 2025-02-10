@@ -1,4 +1,3 @@
-module type S = sig
 (** Encoder and decoder for Memtrace traces *)
 
 (** Timestamps *)
@@ -164,7 +163,3 @@ module Reader : sig
   val close : t -> unit
 end
 *)
-
-end
-
-module Make (P : Mirage_clock.PCLOCK) : S
