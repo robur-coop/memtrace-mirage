@@ -1,3 +1,7 @@
+## v0.2.1.2.3 (2025-02-10)
+
+Remove functor for PCLOCK, it is now a variant (#1)
+
 ## v0.2.1.2.2 (2022-05-22)
 
 Improve failure behaviour on write error: avoid raising an exception
