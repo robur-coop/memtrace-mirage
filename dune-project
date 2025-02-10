@@ -15,7 +15,7 @@
  (depends
   (ocaml (>= 4.11.0))
   (mirage-flow (>= 3.0.0))
-  (mirage-clock (>= 4.0.0))
+  (mirage-ptime (>= 5.0.0))
   (ptime (>= 1.0.0))
   (lwt (>= 5.5.0))))
 

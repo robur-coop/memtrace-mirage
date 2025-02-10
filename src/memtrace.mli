@@ -1,7 +1,7 @@
 (** The sampling_rate is the proportion of allocated words that should be
     sampled. Values larger than about 1e-4 will have some performance impact. *)
 
-module Make (P : Mirage_clock.PCLOCK) (F : Mirage_flow.S) : sig
+module Make (F : Mirage_flow.S) : sig
 
 (** Tracing can also be manually started and stopped. *)
 type tracer
@@ -19,11 +19,11 @@ val stop_tracing : tracer -> unit
 val default_sampling_rate : float
 
 (** Use the Trace module to read and write trace files *)
-module Trace : Trace.S
+module Trace = Trace
 
 (** Use Memprof_tracer in conjunction with Trace.Writer for more manual
     control over trace collection *)
-module Memprof_tracer : module type of Memprof_tracer.Make(Trace)
+module Memprof_tracer = Memprof_tracer
 
 (** Use External to track non-GC-heap allocations in a Memtrace trace *)
 module External : sig
