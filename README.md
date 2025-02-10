@@ -23,7 +23,7 @@ starting the unikernel.
 In the `unikernel.ml`, add the following code to the `start` function:
 
 ```OCaml
-module Memtrace = Memtrace.Make(Pclock)(S.TCP)
+module Memtrace = Memtrace.Make(S.TCP)
 
 let start () s =
   (S.TCP.create_connection (S.tcp s) (Ipaddr.of_string_exn "10.0.0.1", 1234) >|= function
