@@ -44,7 +44,7 @@ Quit the `nc` process once you like to stop tracing.
 In the `unikernel.ml`, add the following code:
 
 ```OCaml
-module Memtrace = Memtrace.Make(Pclock)(S.TCP)
+module Memtrace = Memtrace.Make(S.TCP)
 
 let start () s =
   S.TCP.listen (S.tcp s) ~port:1234
